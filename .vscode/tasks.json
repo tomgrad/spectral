@@ -1,0 +1,33 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "designer mainwindow",
+            "type": "shell",
+            "command": "pyside6-designer mainwindow.ui",
+            "problemMatcher": []
+        },
+        {
+            "label": "designer opendialog",
+            "type": "shell",
+            "command": "pyside6-designer opendialog.ui",
+            "problemMatcher": []
+        },
+        {
+            "label": "generate mainwindow",
+            "type": "shell",
+            "command": "pyside6-uic mainwindow.ui -o ui_mainwindow.py",
+            "problemMatcher": []
+        },
+        {
+            "label": "generate opendialog",
+            "type": "shell",
+            "command": "pyside6-uic opendialog.ui -o ui_opendialog.py",
+            "problemMatcher": []
+        },
+
+
+    ]
+}
