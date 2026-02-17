@@ -31,7 +31,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.display_timer.setInterval(50)  # Update every 50ms max
         self.display_timer.start()
 
-        self._loadAudio('audio/whiskey.wav')
+        self._loadAudio('audio/parowki.wav')
         self.plotView.plot(x=self.time_axis, y=self.data)
         self.plotView.setLabel('bottom', 'Time', units='s')
         self.plotView.setLabel('left', 'Amplitude')
