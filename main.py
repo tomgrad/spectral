@@ -1,6 +1,6 @@
 import sys
 from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QLabel
-from PySide6.QtCore import Slot, QUrl
+from PySide6.QtCore import Slot, QUrl, QTimer
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 import pyqtgraph as pg
 import numpy as np
@@ -21,15 +21,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
 
+        # Initialize drawing mask
+        self.draw_mask = None
+        
+        # Display update throttling
+        self.display_needs_update = False
+        self.display_timer = QTimer()
+        self.display_timer.timeout.connect(self._throttled_display_update)
+        self.display_timer.setInterval(50)  # Update every 50ms max
+        self.display_timer.start()
+
         self._loadAudio('audio/whiskey.wav')
         self.plotView.plot(x=self.time_axis, y=self.data)
         self.plotView.setLabel('bottom', 'Time', units='s')
         self.plotView.setLabel('left', 'Amplitude')
-        self.imageView.show(self.frequencies, self.times, self.Sxx)
         
         # Set histogram checkbox to off by default
         self.histogramCheckBox.setChecked(False)
         self.imageView.ui.histogram.hide()
+        
+        # Set Log scale as default (before displaying spectrogram)
+        self.scaleComboBox.setCurrentIndex(1)  # Log is at index 1
+        
+        # Now display with correct scale
+        self._display_spectrogram()
 
         # Create playback position lines
         self.playback_line_wave = pg.InfiniteLine(
@@ -54,10 +69,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.openButton.clicked.connect(self.openFile)
         self.exportButton.clicked.connect(self.exportAudio)
         self.reconstructButton.clicked.connect(self.reconstructSignal)
+        self.regenerateButton.clicked.connect(self.regenerateSpectrogram)
         self.zeroPhaseButton.clicked.connect(self.setPhaseToZero)
         self.randomPhaseButton.clicked.connect(self.setPhaseToRandom)
         self.reconstructPhaseButton.clicked.connect(self.reconstructPhase)
         self.histogramCheckBox.stateChanged.connect(self.toggleHistogram)
+        self.scaleComboBox.currentIndexChanged.connect(self.onScaleChanged)
         self.imageView.dragCoordinates.connect(self._handle_drag_coordinates)
 
     def onMediaError(self, error):
@@ -69,6 +86,132 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.imageView.ui.histogram.show()
         else:  # Checkbox is unchecked
             self.imageView.ui.histogram.hide()
+    
+    def onScaleChanged(self, index):
+        """Handle spectrogram scale change."""
+        self._display_spectrogram()
+    
+    def _throttled_display_update(self):
+        """Update display only if needed (called by timer)."""
+        if self.display_needs_update:
+            self._display_spectrogram()
+            self.display_needs_update = False
+    
+    def _request_display_update(self):
+        """Request a display update (will be throttled)."""
+        self.display_needs_update = True
+    
+    def _display_spectrogram(self):
+        """Display spectrogram with currently selected scale."""
+        if self.Sxx is None:
+            return
+        
+        # Apply mask to spectrogram if it exists (for display only)
+        if self.draw_mask is not None:
+            # Efficient masked copy using np.where
+            spec_to_display = np.where(np.isnan(self.draw_mask), self.Sxx, self.draw_mask)
+        else:
+            # No mask - use original spectrogram directly (no copy)
+            spec_to_display = self.Sxx
+        
+        # Apply selected scale for display
+        display_spec = self._apply_scale(spec_to_display)
+        
+        # For Mel scale, create a fake frequency array that matches the Mel bins
+        scale_type = self.scaleComboBox.currentText()
+        if scale_type == "Mel":
+            n_mels = display_spec.shape[0]
+            # Create frequencies array for Mel bins (0 to n_mels-1)
+            frequencies_for_display = np.arange(n_mels)
+        else:
+            # Use original frequencies for Linear/Log scales
+            frequencies_for_display = self.frequencies
+        
+        # Display scaled spectrogram
+        self.imageView.show(frequencies_for_display, self.times, display_spec)
+        
+        # Update Y-axis labels based on scale
+        if scale_type == "Mel":
+            n_mels = display_spec.shape[0]
+            self.imageView.set_mel_ticks(n_mels, sr=self.sampling_rate)
+        else:
+            self.imageView.set_linear_ticks()
+    
+    def _apply_scale(self, magnitude_spec):
+        """Apply selected scale to magnitude spectrogram.
+        
+        Note: imageView.show() automatically applies log scaling (10*log10).
+        We compensate for this based on the selected scale:
+        - Linear: Apply inverse log so display shows linear magnitude
+        - Log: Use raw magnitude so log application gives us dB
+        - Mel: Convert to Mel scale then apply log
+        """
+        scale_type = self.scaleComboBox.currentText()
+        
+        if scale_type == "Linear":
+            # Apply inverse log to counteract imageView's log application
+            # Result: 10*log10(10^(magnitude/10)) = magnitude (linear scale)
+            return 10.0 ** (magnitude_spec / 10.0)
+        elif scale_type == "Log":
+            # Use raw magnitude - imageView will apply log to get dB scale
+            return magnitude_spec
+        elif scale_type == "Mel":
+            return self._to_mel_scale(magnitude_spec)
+        else:
+            return magnitude_spec
+    
+    def _to_mel_scale(self, magnitude_spec):
+        """Convert linear spectrogram to Mel scale."""
+        if not hasattr(self, 'mel_fb'):
+            # Create Mel filterbank on first use
+            n_fft = (magnitude_spec.shape[0] - 1) * 2
+            self.mel_fb = self._create_mel_filterbank(n_fft)
+        
+        # Apply Mel filterbank
+        mel_spec = self.mel_fb @ magnitude_spec
+        
+        # Ensure no NaN values
+        mel_spec = np.nan_to_num(mel_spec, nan=1e-10, posinf=1e-10, neginf=1e-10)
+        mel_spec = np.maximum(mel_spec, 1e-10)  # Ensure positive values
+        
+        return mel_spec
+    
+    def _create_mel_filterbank(self, n_fft, n_mels=128):
+        """Create Mel-scale filterbank matrix."""
+        sr = self.sampling_rate
+        f_max = sr / 2
+        freqs = np.linspace(0, f_max, n_fft // 2 + 1)
+        
+        # Convert Hz to Mel
+        def hz_to_mel(hz):
+            return 2595 * np.log10(1 + hz / 700)
+        
+        def mel_to_hz(mel):
+            return 700 * (10 ** (mel / 2595) - 1)
+        
+        f_min_mel = hz_to_mel(0)
+        f_max_mel = hz_to_mel(f_max)
+        mel_points = np.linspace(f_min_mel, f_max_mel, n_mels + 2)
+        hz_points = mel_to_hz(mel_points)
+        
+        # Create filterbank
+        mel_fb = np.zeros((n_mels, len(freqs)))
+        for m in range(n_mels):
+            f_left = hz_points[m]
+            f_center = hz_points[m + 1]
+            f_right = hz_points[m + 2]
+            
+            left_slope = (freqs - f_left) / (f_center - f_left + 1e-10)
+            right_slope = (f_right - freqs) / (f_right - f_center + 1e-10)
+            mel_fb[m, :] = np.maximum(0, np.minimum(left_slope, right_slope))
+        
+        # Pre-compute mapping from Mel bins to frequency bins for faster drawing
+        self.mel_to_freq_mapping = {}
+        for mel_bin in range(n_mels):
+            freq_indices = np.where(mel_fb[mel_bin] > 0)[0]
+            self.mel_to_freq_mapping[mel_bin] = freq_indices
+        
+        return mel_fb
 
     def exportAudio(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -105,7 +248,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.plotView.addItem(self.playback_line_wave)
             self.plotView.plot(x=self.time_axis, y=self.data)
             self.playback_line_wave.hide()
-            self.imageView.show(self.frequencies, self.times, self.Sxx)
+            self._display_spectrogram()
 
     def playAudio(self):
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
@@ -208,6 +351,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             print("No audio loaded")
             return
         
+        # Apply mask to spectrogram permanently
+        if self.draw_mask is not None:
+            mask_valid = ~np.isnan(self.draw_mask)
+            self.Sxx[mask_valid] = self.draw_mask[mask_valid]
+            # Clear the mask after applying
+            self.draw_mask = None
+            print("Mask applied to spectrogram")
+        
         # Use current phase if available, otherwise use original
         if hasattr(self, 'phase'):
             phase = self.phase
@@ -238,10 +389,48 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.playback_line_wave.hide()
         
         print("Signal reconstructed successfully")
+    
+    def regenerateSpectrogram(self):
+        """Recalculate spectrogram from current signal."""
+        if not hasattr(self, 'data') or self.data is None:
+            print("No audio data available")
+            return
+        
+        # Clear mask
+        self.draw_mask = None
+        
+        # Recalculate STFT from current data
+        self.frequencies, self.times, self.Zxx = scipy.signal.stft(
+            self.data,
+            fs=self.sampling_rate,
+            nperseg=1024,
+            noverlap=512,
+        )
+        
+        # Compute magnitude spectrogram from complex STFT
+        self.Sxx = np.abs(self.Zxx)
+        self.sxx_max = np.max(self.Sxx) if self.Sxx.size else 0.0
+        
+        # Reset phase from new STFT
+        self.phase = np.angle(self.Zxx).copy()
+        
+        # Clear Mel filterbank cache to force regeneration
+        if hasattr(self, 'mel_fb'):
+            delattr(self, 'mel_fb')
+        if hasattr(self, 'mel_to_freq_mapping'):
+            delattr(self, 'mel_to_freq_mapping')
+        
+        # Update display
+        self._display_spectrogram()
+        print("Spectrogram regenerated from current signal")
 
     def _handle_drag_coordinates(self, freq_idx: int, time_idx: int):
         if self.Sxx is None:
             return
+
+        # Initialize mask if it doesn't exist
+        if self.draw_mask is None:
+            self.draw_mask = np.full_like(self.Sxx, np.nan)
 
         # Get radius and amplitude from spin boxes
         radius = self.brushSizeSpinBox.value()  # Interpret as radius directly
@@ -262,19 +451,41 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Convert back to linear space
         target_amplitude = 10 ** (target_dB / 10.0)
         
-        # Apply brush with target amplitude
-        for df in range(-radius, radius + 1):
-            for dt in range(-radius, radius + 1):
-                f = freq_idx + df
-                t = time_idx + dt
-                # Check if within brush radius (circular brush)
-                if df*df + dt*dt <= radius*radius:
-                    if 0 <= f < self.Sxx.shape[0] and 0 <= t < self.Sxx.shape[1]:
-                        self.Sxx[f, t] = target_amplitude
+        # Get current scale
+        current_scale = self.scaleComboBox.currentText()
         
-        self.imageView.show(self.frequencies, self.times, self.Sxx)
+        # Apply brush to the mask instead of actual spectrogram
+        if current_scale == "Mel" and hasattr(self, 'mel_to_freq_mapping'):
+            # Optimized path for Mel scale using pre-computed mapping
+            for df in range(-radius, radius + 1):
+                for dt in range(-radius, radius + 1):
+                    # Check if within brush radius (circular brush)
+                    if df*df + dt*dt <= radius*radius:
+                        mel_bin = freq_idx + df
+                        t = time_idx + dt
+                        if 0 <= mel_bin < 128 and 0 <= t < self.Sxx.shape[1]:
+                            # Use pre-computed frequency indices for this Mel bin
+                            freq_indices = self.mel_to_freq_mapping[mel_bin]
+                            # Vectorized assignment to mask
+                            self.draw_mask[freq_indices, t] = target_amplitude
+        else:
+            # Linear or Log scale - direct mapping
+            for df in range(-radius, radius + 1):
+                for dt in range(-radius, radius + 1):
+                    # Check if within brush radius (circular brush)
+                    if df*df + dt*dt <= radius*radius:
+                        f = freq_idx + df
+                        t = time_idx + dt
+                        if 0 <= f < self.Sxx.shape[0] and 0 <= t < self.Sxx.shape[1]:
+                            self.draw_mask[f, t] = target_amplitude
+        
+        # Request display update (throttled)
+        self._request_display_update()
 
     def _loadAudio(self, file_path):
+        # Clear any existing mask when loading new audio
+        self.draw_mask = None
+        
         original_rate, data = scipy.io.wavfile.read(file_path)
         
         # Normalize audio data to float (-1.0 to 1.0)

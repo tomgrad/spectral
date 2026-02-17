@@ -15,10 +15,11 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QCheckBox, QDoubleSpinBox, QFormLayout,
-    QGroupBox, QHBoxLayout, QLabel, QMainWindow,
-    QMenuBar, QPushButton, QSizePolicy, QSpacerItem,
-    QSpinBox, QStatusBar, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDoubleSpinBox,
+    QFormLayout, QGroupBox, QHBoxLayout, QLabel,
+    QMainWindow, QMenuBar, QPushButton, QSizePolicy,
+    QSpacerItem, QSpinBox, QStatusBar, QVBoxLayout,
+    QWidget)
 
 from imageview import ImageView
 from pyqtgraph import PlotWidget
@@ -83,17 +84,17 @@ class Ui_MainWindow(object):
         self.label_3.setObjectName(u"label_3")
         self.label_3.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.formLayout.setWidget(5, QFormLayout.ItemRole.SpanningRole, self.label_3)
+        self.formLayout.setWidget(6, QFormLayout.ItemRole.SpanningRole, self.label_3)
 
         self.zeroPhaseButton = QPushButton(self.groupBox)
         self.zeroPhaseButton.setObjectName(u"zeroPhaseButton")
 
-        self.formLayout.setWidget(6, QFormLayout.ItemRole.LabelRole, self.zeroPhaseButton)
+        self.formLayout.setWidget(7, QFormLayout.ItemRole.LabelRole, self.zeroPhaseButton)
 
         self.randomPhaseButton = QPushButton(self.groupBox)
         self.randomPhaseButton.setObjectName(u"randomPhaseButton")
 
-        self.formLayout.setWidget(6, QFormLayout.ItemRole.FieldRole, self.randomPhaseButton)
+        self.formLayout.setWidget(7, QFormLayout.ItemRole.FieldRole, self.randomPhaseButton)
 
         self.iterSpinBox = QSpinBox(self.groupBox)
         self.iterSpinBox.setObjectName(u"iterSpinBox")
@@ -102,26 +103,44 @@ class Ui_MainWindow(object):
         self.iterSpinBox.setSingleStep(10)
         self.iterSpinBox.setValue(100)
 
-        self.formLayout.setWidget(7, QFormLayout.ItemRole.LabelRole, self.iterSpinBox)
+        self.formLayout.setWidget(8, QFormLayout.ItemRole.LabelRole, self.iterSpinBox)
 
         self.reconstructPhaseButton = QPushButton(self.groupBox)
         self.reconstructPhaseButton.setObjectName(u"reconstructPhaseButton")
 
-        self.formLayout.setWidget(7, QFormLayout.ItemRole.FieldRole, self.reconstructPhaseButton)
+        self.formLayout.setWidget(8, QFormLayout.ItemRole.FieldRole, self.reconstructPhaseButton)
 
         self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
-        self.formLayout.setItem(8, QFormLayout.ItemRole.LabelRole, self.verticalSpacer)
+        self.formLayout.setItem(9, QFormLayout.ItemRole.LabelRole, self.verticalSpacer)
+
+        self.histogramCheckBox = QCheckBox(self.groupBox)
+        self.histogramCheckBox.setObjectName(u"histogramCheckBox")
+
+        self.formLayout.setWidget(10, QFormLayout.ItemRole.SpanningRole, self.histogramCheckBox)
+
+        self.scaleComboBox = QComboBox(self.groupBox)
+        self.scaleComboBox.addItem("")
+        self.scaleComboBox.addItem("")
+        self.scaleComboBox.addItem("")
+        self.scaleComboBox.setObjectName(u"scaleComboBox")
+
+        self.formLayout.setWidget(1, QFormLayout.ItemRole.FieldRole, self.scaleComboBox)
+
+        self.label_4 = QLabel(self.groupBox)
+        self.label_4.setObjectName(u"label_4")
+
+        self.formLayout.setWidget(1, QFormLayout.ItemRole.LabelRole, self.label_4)
+
+        self.regenerateButton = QPushButton(self.groupBox)
+        self.regenerateButton.setObjectName(u"regenerateButton")
+
+        self.formLayout.setWidget(5, QFormLayout.ItemRole.LabelRole, self.regenerateButton)
 
         self.playButton = QPushButton(self.groupBox)
         self.playButton.setObjectName(u"playButton")
 
         self.formLayout.setWidget(4, QFormLayout.ItemRole.FieldRole, self.playButton)
-
-        self.histogramCheckBox = QCheckBox(self.groupBox)
-        self.histogramCheckBox.setObjectName(u"histogramCheckBox")
-
-        self.formLayout.setWidget(9, QFormLayout.ItemRole.SpanningRole, self.histogramCheckBox)
 
 
         self.horizontalLayout.addWidget(self.groupBox)
@@ -170,7 +189,13 @@ class Ui_MainWindow(object):
         self.zeroPhaseButton.setText(QCoreApplication.translate("MainWindow", u"zero", None))
         self.randomPhaseButton.setText(QCoreApplication.translate("MainWindow", u"random", None))
         self.reconstructPhaseButton.setText(QCoreApplication.translate("MainWindow", u"reconstruct", None))
-        self.playButton.setText(QCoreApplication.translate("MainWindow", u"Play", None))
         self.histogramCheckBox.setText(QCoreApplication.translate("MainWindow", u"histogram", None))
+        self.scaleComboBox.setItemText(0, QCoreApplication.translate("MainWindow", u"Linear", None))
+        self.scaleComboBox.setItemText(1, QCoreApplication.translate("MainWindow", u"Log", None))
+        self.scaleComboBox.setItemText(2, QCoreApplication.translate("MainWindow", u"Mel", None))
+
+        self.label_4.setText(QCoreApplication.translate("MainWindow", u"scale", None))
+        self.regenerateButton.setText(QCoreApplication.translate("MainWindow", u"Refresh", None))
+        self.playButton.setText(QCoreApplication.translate("MainWindow", u"Play", None))
     # retranslateUi
 

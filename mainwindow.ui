@@ -88,7 +88,7 @@
          </property>
         </widget>
        </item>
-       <item row="5" column="0" colspan="2">
+       <item row="6" column="0" colspan="2">
         <widget class="QLabel" name="label_3">
          <property name="text">
           <string>Phase</string>
@@ -98,21 +98,21 @@
          </property>
         </widget>
        </item>
-       <item row="6" column="0">
+       <item row="7" column="0">
         <widget class="QPushButton" name="zeroPhaseButton">
          <property name="text">
           <string>zero</string>
          </property>
         </widget>
        </item>
-       <item row="6" column="1">
+       <item row="7" column="1">
         <widget class="QPushButton" name="randomPhaseButton">
          <property name="text">
           <string>random</string>
          </property>
         </widget>
        </item>
-       <item row="7" column="0">
+       <item row="8" column="0">
         <widget class="QSpinBox" name="iterSpinBox">
          <property name="minimum">
           <number>1</number>
@@ -128,14 +128,14 @@
          </property>
         </widget>
        </item>
-       <item row="7" column="1">
+       <item row="8" column="1">
         <widget class="QPushButton" name="reconstructPhaseButton">
          <property name="text">
           <string>reconstruct</string>
          </property>
         </widget>
        </item>
-       <item row="8" column="0">
+       <item row="9" column="0">
         <spacer name="verticalSpacer">
          <property name="orientation">
           <enum>Qt::Orientation::Vertical</enum>
@@ -148,17 +148,50 @@
          </property>
         </spacer>
        </item>
+       <item row="10" column="0" colspan="2">
+        <widget class="QCheckBox" name="histogramCheckBox">
+         <property name="text">
+          <string>histogram</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QComboBox" name="scaleComboBox">
+         <item>
+          <property name="text">
+           <string>Linear</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Log</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Mel</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="label_4">
+         <property name="text">
+          <string>scale</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="0">
+        <widget class="QPushButton" name="regenerateButton">
+         <property name="text">
+          <string>Refresh</string>
+         </property>
+        </widget>
+       </item>
        <item row="4" column="1">
         <widget class="QPushButton" name="playButton">
          <property name="text">
           <string>Play</string>
-         </property>
-        </widget>
-       </item>
-       <item row="9" column="0" colspan="2">
-        <widget class="QCheckBox" name="histogramCheckBox">
-         <property name="text">
-          <string>histogram</string>
          </property>
         </widget>
        </item>
