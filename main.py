@@ -38,6 +38,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.transform_settings_timer.setInterval(250)
         self.transform_settings_timer.timeout.connect(self._applyTransformSettingsChange)
 
+        self.last_opened_file_path = None
+
         self._loadAudio('audio/parowki.wav')
         self.plotView.plot(x=self.time_axis, y=self.data)
         self.plotView.setLabel('bottom', 'Time', units='s')
@@ -83,12 +85,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.playButton.clicked.connect(self.playAudio)
         self.openButton.clicked.connect(self.openFile)
+        self.reloadButton.clicked.connect(self.reloadLastFile)
         self.exportButton.clicked.connect(self.exportAudio)
         self.reconstructButton.clicked.connect(self.reconstructSignal)
         self.regenerateButton.clicked.connect(self.regenerateSpectrogram)
         self.zeroPhaseButton.clicked.connect(self.setPhaseToZero)
         self.randomPhaseButton.clicked.connect(self.setPhaseToRandom)
         self.reconstructPhaseButton.clicked.connect(self.reconstructPhase)
+        self.topFreqButton.clicked.connect(self.reconstructTopFrequencies)
         self.resetMaskButton.clicked.connect(self.resetMask)
         self.burnButton.clicked.connect(self.burnMask)
         self.histogramCheckBox.stateChanged.connect(self.toggleHistogram)
@@ -99,7 +103,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.overlapSpinBox.valueChanged.connect(self.onTransformSettingsChanged)
 
     def onMediaError(self, error):
-        print(f"Media Error: {self.player.errorString()}")
+        self._set_status_message(f"Media Error: {self.player.errorString()}")
+
+    def _set_status_message(self, message, timeout_ms=5000):
+        self.statusbar.showMessage(message, timeout_ms)
 
     def toggleHistogram(self, state):
         """Toggle histogram visibility based on checkbox state."""
@@ -179,13 +186,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self._ensure_uncovered_mask()
         if self.uncovered_mask is None or not np.any(self.uncovered_mask):
-            print("No uncovered bins to burn")
+            self._set_status_message("No uncovered bins to burn")
             return
 
         target_amplitude = self._target_amplitude_from_amp_control()
         self.Sxx[self.uncovered_mask] = target_amplitude
         self._display_spectrogram()
-        print("Burn applied to uncovered spectrogram regions")
+        self._set_status_message("Burn applied to uncovered spectrogram regions")
     
     def _throttled_display_update(self):
         """Update display only if needed (called by timer)."""
@@ -391,7 +398,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             
             # Write to file
             sf.write(file_path, audio_int16, self.sampling_rate)
-            print(f"Audio exported successfully to: {file_path}")
+            self._set_status_message(f"Audio exported successfully to: {file_path}")
 
     def openFile(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -401,12 +408,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             "WAV Files (*.wav);;All Files (*)"
         )
         if file_path:
-            self._loadAudio(file_path)
-            self.plotView.clear()
-            self.plotView.addItem(self.playback_line_wave)
-            self.plotView.plot(x=self.time_axis, y=self.data)
-            self.playback_line_wave.hide()
-            self._display_spectrogram()
+            self._loadAndRefresh(file_path)
+
+    def reloadLastFile(self):
+        """Reload the most recently opened audio file."""
+        if not self.last_opened_file_path:
+            self._set_status_message("No file to reload")
+            return
+
+        file_path = Path(self.last_opened_file_path)
+        if not file_path.exists():
+            self._set_status_message(f"Cannot reload: file not found ({file_path})")
+            return
+
+        self._loadAndRefresh(str(file_path))
+        self._set_status_message(f"Reloaded: {file_path}")
+
+    def _loadAndRefresh(self, file_path):
+        """Load audio file and refresh waveform and spectrogram views."""
+        self._loadAudio(file_path)
+        self.plotView.clear()
+        self.plotView.addItem(self.playback_line_wave)
+        self.plotView.plot(x=self.time_axis, y=self.data)
+        self.playback_line_wave.hide()
+        self._display_spectrogram()
 
     def playAudio(self):
         if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
@@ -447,35 +472,35 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def setPhaseToZero(self):
         """Set phase to all zeros."""
         if self.Zxx is None:
-            print("No audio loaded")
+            self._set_status_message("No audio loaded")
             return
         
         # Set phase to zero (all imaginary parts = 0)
         self.phase = np.zeros_like(self.Zxx)
-        print("Phase set to zero")
+        self._set_status_message("Phase set to zero")
         self.reconstructSignal()  # Update signal with new zero phase
     
     def setPhaseToRandom(self):
         """Set phase to random values between -π and π."""
         if self.Zxx is None:
-            print("No audio loaded")
+            self._set_status_message("No audio loaded")
             return
         
         # Generate random phase
         self.phase = np.random.uniform(-np.pi, np.pi, self.Zxx.shape)
-        print("Phase set to random")
+        self._set_status_message("Phase set to random")
         self.reconstructSignal()  # Update signal with new random phase
     
     def reconstructPhase(self):
         """Reconstruct phase using Griffin-Lim algorithm."""
         if self.Zxx is None or self.Sxx is None:
-            print("No audio loaded")
+            self._set_status_message("No audio loaded")
             return
 
         nperseg, noverlap = self._get_stft_params()
         
         n_iter = self.iterSpinBox.value()
-        print(f"Reconstructing phase with {n_iter} iterations...")
+        self._set_status_message(f"Reconstructing phase with {n_iter} iterations...", 2000)
         
         # Initialize phase randomly
         phase = np.random.uniform(-np.pi, np.pi, self.Sxx.shape)
@@ -505,16 +530,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             phase = np.angle(Zxx_reconstructed)
             
             if (iteration + 1) % max(1, n_iter // 10) == 0:
-                print(f"  Iteration {iteration + 1}/{n_iter}")
+                self._set_status_message(f"Phase reconstruction: {iteration + 1}/{n_iter}", 1000)
         
         # Store reconstructed phase
         self.phase = phase
-        print("Phase reconstruction completed")
+        self._set_status_message("Phase reconstruction completed")
         self.reconstructSignal()  # Update signal with new reconstructed phase
     
     def reconstructSignal(self):
         if self.Zxx is None or self.Sxx is None:
-            print("No audio loaded")
+            self._set_status_message("No audio loaded")
             return
 
         nperseg, noverlap = self._get_stft_params()
@@ -525,7 +550,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.Sxx[mask_valid] = self.draw_mask[mask_valid]
             # Clear the mask after applying
             self.draw_mask = None
-            print("Mask applied to spectrogram")
+            self._set_status_message("Mask applied to spectrogram", 2000)
             
         
         # Use current phase if available, otherwise use original
@@ -534,22 +559,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             phase = np.angle(self.Zxx)
 
-        magnitude_for_reconstruction = self.Sxx
-        masked_floor_amplitude = 1e-10
-
-        # When mask mode is enabled, reconstruct only from uncovered bins
-        if self.maskCheckBox.isChecked():
-            self._ensure_uncovered_mask()
-            if self.uncovered_mask is not None:
-                if np.any(self.uncovered_mask):
-                    magnitude_for_reconstruction = np.where(
-                        self.uncovered_mask,
-                        self.Sxx,
-                        masked_floor_amplitude,
-                    )
-                else:
-                    magnitude_for_reconstruction = np.full_like(self.Sxx, masked_floor_amplitude)
-                    print("No uncovered bins selected; reconstructing near-silence")
+        magnitude_for_reconstruction = self._build_magnitude_for_reconstruction()
         
         # Combine modified magnitude with phase
         Zxx_modified = magnitude_for_reconstruction * np.exp(1j * phase)
@@ -574,12 +584,100 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.plotView.plot(x=self.time_axis, y=self.data)
         self.playback_line_wave.hide()
         
-        print("Signal reconstructed successfully")
+        self._set_status_message("Signal reconstructed successfully")
+
+    def reconstructTopFrequencies(self):
+        """Reconstruct signal using only top-N frequencies per STFT time window."""
+        if self.Zxx is None or self.Sxx is None:
+            self._set_status_message("No audio loaded")
+            return
+
+        nperseg, noverlap = self._get_stft_params()
+
+        # Apply mask to spectrogram permanently
+        if self.draw_mask is not None:
+            mask_valid = ~np.isnan(self.draw_mask)
+            self.Sxx[mask_valid] = self.draw_mask[mask_valid]
+            self.draw_mask = None
+            self._set_status_message("Mask applied to spectrogram", 2000)
+
+        # Use current phase if available, otherwise use original
+        if hasattr(self, 'phase'):
+            phase = self.phase
+        else:
+            phase = np.angle(self.Zxx)
+
+        top_frequencies = int(self.topFreqSpinBox.value())
+        magnitude_for_reconstruction = self._build_magnitude_for_reconstruction(
+            top_freq_count=top_frequencies,
+        )
+
+        Zxx_modified = magnitude_for_reconstruction * np.exp(1j * phase)
+
+        _, reconstructed_data = scipy.signal.istft(
+            Zxx_modified,
+            fs=self.sampling_rate,
+            nperseg=nperseg,
+            noverlap=noverlap,
+        )
+
+        self.data = reconstructed_data
+        self.time_axis = np.arange(len(self.data)) / self.sampling_rate
+
+        self.plotView.clear()
+        self.plotView.addItem(self.playback_line_wave)
+        self.plotView.plot(x=self.time_axis, y=self.data)
+        self.playback_line_wave.hide()
+
+        self._set_status_message(f"Signal reconstructed with top {top_frequencies} frequencies per window")
+
+    def _build_magnitude_for_reconstruction(self, top_freq_count=None):
+        """Build magnitude matrix for ISTFT with optional top-frequency filtering."""
+        magnitude_for_reconstruction = self.Sxx
+        masked_floor_amplitude = 1e-10
+
+        # When mask mode is enabled, reconstruct only from uncovered bins
+        if self.maskCheckBox.isChecked():
+            self._ensure_uncovered_mask()
+            if self.uncovered_mask is not None:
+                if np.any(self.uncovered_mask):
+                    magnitude_for_reconstruction = np.where(
+                        self.uncovered_mask,
+                        self.Sxx,
+                        masked_floor_amplitude,
+                    )
+                else:
+                    magnitude_for_reconstruction = np.full_like(self.Sxx, masked_floor_amplitude)
+                    self._set_status_message("No uncovered bins selected; reconstructing near-silence")
+
+        if top_freq_count is None:
+            return magnitude_for_reconstruction
+
+        n_freq_bins, n_time_frames = magnitude_for_reconstruction.shape
+        top_freq_count = max(1, min(int(top_freq_count), n_freq_bins))
+
+        if top_freq_count >= n_freq_bins:
+            return magnitude_for_reconstruction
+
+        top_indices = np.argpartition(
+            magnitude_for_reconstruction,
+            kth=n_freq_bins - top_freq_count,
+            axis=0,
+        )[n_freq_bins - top_freq_count :, :]
+
+        filtered_magnitude = np.full_like(magnitude_for_reconstruction, masked_floor_amplitude)
+        time_indices = np.arange(n_time_frames)
+        filtered_magnitude[top_indices, time_indices[None, :]] = magnitude_for_reconstruction[
+            top_indices,
+            time_indices[None, :],
+        ]
+
+        return filtered_magnitude
     
     def regenerateSpectrogram(self):
         """Recalculate spectrogram from current signal."""
         if not hasattr(self, 'data') or self.data is None:
-            print("No audio data available")
+            self._set_status_message("No audio data available")
             return
 
         nperseg, noverlap = self._get_stft_params()
@@ -612,7 +710,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
         # Update display
         self._display_spectrogram()
-        print("Spectrogram regenerated from current signal")
+        self._set_status_message("Spectrogram regenerated from current signal")
 
     def _handle_drag_coordinates(self, freq_idx: int, time_idx: int):
         if self.Sxx is None:
@@ -696,6 +794,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Clear any existing mask when loading new audio
         self.draw_mask = None
         self.uncovered_mask = None
+        self.last_opened_file_path = str(Path(file_path).resolve())
 
         nperseg, noverlap = self._get_stft_params()
         

@@ -15,10 +15,11 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDoubleSpinBox,
-    QFormLayout, QGroupBox, QHBoxLayout, QLabel,
-    QMainWindow, QMenuBar, QPushButton, QSizePolicy,
-    QSpinBox, QStatusBar, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QAbstractSpinBox, QApplication, QCheckBox, QComboBox,
+    QDoubleSpinBox, QFormLayout, QGroupBox, QHBoxLayout,
+    QLabel, QMainWindow, QMenuBar, QPushButton,
+    QSizePolicy, QSpacerItem, QSpinBox, QStatusBar,
+    QTabWidget, QVBoxLayout, QWidget)
 
 from imageview import ImageView
 from pyqtgraph import PlotWidget
@@ -27,7 +28,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(800, 623)
+        MainWindow.resize(800, 627)
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.horizontalLayout = QHBoxLayout(self.centralwidget)
@@ -46,36 +47,10 @@ class Ui_MainWindow(object):
 
         self.formLayout.setWidget(0, QFormLayout.ItemRole.FieldRole, self.exportButton)
 
-        self.label_5 = QLabel(self.groupBox)
-        self.label_5.setObjectName(u"label_5")
-
-        self.formLayout.setWidget(1, QFormLayout.ItemRole.LabelRole, self.label_5)
-
-        self.npersegSpinBox = QSpinBox(self.groupBox)
-        self.npersegSpinBox.setObjectName(u"npersegSpinBox")
-        self.npersegSpinBox.setMinimum(1)
-        self.npersegSpinBox.setMaximum(2048)
-        self.npersegSpinBox.setValue(1024)
-
-        self.formLayout.setWidget(1, QFormLayout.ItemRole.FieldRole, self.npersegSpinBox)
-
-        self.label_6 = QLabel(self.groupBox)
-        self.label_6.setObjectName(u"label_6")
-
-        self.formLayout.setWidget(2, QFormLayout.ItemRole.LabelRole, self.label_6)
-
-        self.overlapSpinBox = QDoubleSpinBox(self.groupBox)
-        self.overlapSpinBox.setObjectName(u"overlapSpinBox")
-        self.overlapSpinBox.setMaximum(0.990000000000000)
-        self.overlapSpinBox.setSingleStep(0.100000000000000)
-        self.overlapSpinBox.setValue(0.500000000000000)
-
-        self.formLayout.setWidget(2, QFormLayout.ItemRole.FieldRole, self.overlapSpinBox)
-
         self.label_4 = QLabel(self.groupBox)
         self.label_4.setObjectName(u"label_4")
 
-        self.formLayout.setWidget(3, QFormLayout.ItemRole.LabelRole, self.label_4)
+        self.formLayout.setWidget(5, QFormLayout.ItemRole.LabelRole, self.label_4)
 
         self.scaleComboBox = QComboBox(self.groupBox)
         self.scaleComboBox.addItem("")
@@ -83,40 +58,22 @@ class Ui_MainWindow(object):
         self.scaleComboBox.addItem("")
         self.scaleComboBox.setObjectName(u"scaleComboBox")
 
-        self.formLayout.setWidget(3, QFormLayout.ItemRole.FieldRole, self.scaleComboBox)
+        self.formLayout.setWidget(5, QFormLayout.ItemRole.FieldRole, self.scaleComboBox)
 
-        self.label = QLabel(self.groupBox)
-        self.label.setObjectName(u"label")
+        self.resetMaskButton = QPushButton(self.groupBox)
+        self.resetMaskButton.setObjectName(u"resetMaskButton")
 
-        self.formLayout.setWidget(4, QFormLayout.ItemRole.LabelRole, self.label)
-
-        self.brushSizeSpinBox = QSpinBox(self.groupBox)
-        self.brushSizeSpinBox.setObjectName(u"brushSizeSpinBox")
-        self.brushSizeSpinBox.setMinimum(0)
-        self.brushSizeSpinBox.setMaximum(25)
-        self.brushSizeSpinBox.setValue(2)
-
-        self.formLayout.setWidget(4, QFormLayout.ItemRole.FieldRole, self.brushSizeSpinBox)
-
-        self.label_2 = QLabel(self.groupBox)
-        self.label_2.setObjectName(u"label_2")
-
-        self.formLayout.setWidget(5, QFormLayout.ItemRole.LabelRole, self.label_2)
-
-        self.ampSpinBox = QDoubleSpinBox(self.groupBox)
-        self.ampSpinBox.setObjectName(u"ampSpinBox")
-        self.ampSpinBox.setDecimals(1)
-        self.ampSpinBox.setMinimum(-1.000000000000000)
-        self.ampSpinBox.setMaximum(1.000000000000000)
-        self.ampSpinBox.setSingleStep(0.100000000000000)
-        self.ampSpinBox.setValue(0.500000000000000)
-
-        self.formLayout.setWidget(5, QFormLayout.ItemRole.FieldRole, self.ampSpinBox)
+        self.formLayout.setWidget(6, QFormLayout.ItemRole.FieldRole, self.resetMaskButton)
 
         self.maskCheckBox = QCheckBox(self.groupBox)
         self.maskCheckBox.setObjectName(u"maskCheckBox")
 
         self.formLayout.setWidget(7, QFormLayout.ItemRole.LabelRole, self.maskCheckBox)
+
+        self.burnButton = QPushButton(self.groupBox)
+        self.burnButton.setObjectName(u"burnButton")
+
+        self.formLayout.setWidget(7, QFormLayout.ItemRole.FieldRole, self.burnButton)
 
         self.reconstructButton = QPushButton(self.groupBox)
         self.reconstructButton.setObjectName(u"reconstructButton")
@@ -137,17 +94,17 @@ class Ui_MainWindow(object):
         self.label_3.setObjectName(u"label_3")
         self.label_3.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.formLayout.setWidget(10, QFormLayout.ItemRole.SpanningRole, self.label_3)
+        self.formLayout.setWidget(11, QFormLayout.ItemRole.SpanningRole, self.label_3)
 
         self.zeroPhaseButton = QPushButton(self.groupBox)
         self.zeroPhaseButton.setObjectName(u"zeroPhaseButton")
 
-        self.formLayout.setWidget(11, QFormLayout.ItemRole.LabelRole, self.zeroPhaseButton)
+        self.formLayout.setWidget(12, QFormLayout.ItemRole.LabelRole, self.zeroPhaseButton)
 
         self.randomPhaseButton = QPushButton(self.groupBox)
         self.randomPhaseButton.setObjectName(u"randomPhaseButton")
 
-        self.formLayout.setWidget(11, QFormLayout.ItemRole.FieldRole, self.randomPhaseButton)
+        self.formLayout.setWidget(12, QFormLayout.ItemRole.FieldRole, self.randomPhaseButton)
 
         self.iterSpinBox = QSpinBox(self.groupBox)
         self.iterSpinBox.setObjectName(u"iterSpinBox")
@@ -156,27 +113,110 @@ class Ui_MainWindow(object):
         self.iterSpinBox.setSingleStep(10)
         self.iterSpinBox.setValue(100)
 
-        self.formLayout.setWidget(12, QFormLayout.ItemRole.LabelRole, self.iterSpinBox)
+        self.formLayout.setWidget(13, QFormLayout.ItemRole.LabelRole, self.iterSpinBox)
 
         self.reconstructPhaseButton = QPushButton(self.groupBox)
         self.reconstructPhaseButton.setObjectName(u"reconstructPhaseButton")
 
-        self.formLayout.setWidget(12, QFormLayout.ItemRole.FieldRole, self.reconstructPhaseButton)
+        self.formLayout.setWidget(13, QFormLayout.ItemRole.FieldRole, self.reconstructPhaseButton)
 
         self.histogramCheckBox = QCheckBox(self.groupBox)
         self.histogramCheckBox.setObjectName(u"histogramCheckBox")
 
-        self.formLayout.setWidget(13, QFormLayout.ItemRole.SpanningRole, self.histogramCheckBox)
+        self.formLayout.setWidget(14, QFormLayout.ItemRole.SpanningRole, self.histogramCheckBox)
 
-        self.resetMaskButton = QPushButton(self.groupBox)
-        self.resetMaskButton.setObjectName(u"resetMaskButton")
+        self.tabWidget = QTabWidget(self.groupBox)
+        self.tabWidget.setObjectName(u"tabWidget")
+        self.tab = QWidget()
+        self.tab.setObjectName(u"tab")
+        self.formLayout_3 = QFormLayout(self.tab)
+        self.formLayout_3.setObjectName(u"formLayout_3")
+        self.label = QLabel(self.tab)
+        self.label.setObjectName(u"label")
 
-        self.formLayout.setWidget(6, QFormLayout.ItemRole.FieldRole, self.resetMaskButton)
+        self.formLayout_3.setWidget(0, QFormLayout.ItemRole.LabelRole, self.label)
 
-        self.burnButton = QPushButton(self.groupBox)
-        self.burnButton.setObjectName(u"burnButton")
+        self.brushSizeSpinBox = QSpinBox(self.tab)
+        self.brushSizeSpinBox.setObjectName(u"brushSizeSpinBox")
+        self.brushSizeSpinBox.setMinimum(0)
+        self.brushSizeSpinBox.setMaximum(25)
+        self.brushSizeSpinBox.setValue(2)
 
-        self.formLayout.setWidget(7, QFormLayout.ItemRole.FieldRole, self.burnButton)
+        self.formLayout_3.setWidget(0, QFormLayout.ItemRole.FieldRole, self.brushSizeSpinBox)
+
+        self.label_2 = QLabel(self.tab)
+        self.label_2.setObjectName(u"label_2")
+
+        self.formLayout_3.setWidget(1, QFormLayout.ItemRole.LabelRole, self.label_2)
+
+        self.ampSpinBox = QDoubleSpinBox(self.tab)
+        self.ampSpinBox.setObjectName(u"ampSpinBox")
+        self.ampSpinBox.setDecimals(1)
+        self.ampSpinBox.setMinimum(-1.000000000000000)
+        self.ampSpinBox.setMaximum(1.000000000000000)
+        self.ampSpinBox.setSingleStep(0.100000000000000)
+        self.ampSpinBox.setValue(0.500000000000000)
+
+        self.formLayout_3.setWidget(1, QFormLayout.ItemRole.FieldRole, self.ampSpinBox)
+
+        self.tabWidget.addTab(self.tab, "")
+        self.tab_2 = QWidget()
+        self.tab_2.setObjectName(u"tab_2")
+        self.formLayout_2 = QFormLayout(self.tab_2)
+        self.formLayout_2.setObjectName(u"formLayout_2")
+        self.npersegSpinBox = QSpinBox(self.tab_2)
+        self.npersegSpinBox.setObjectName(u"npersegSpinBox")
+        self.npersegSpinBox.setMinimum(1)
+        self.npersegSpinBox.setMaximum(2048)
+        self.npersegSpinBox.setValue(1024)
+
+        self.formLayout_2.setWidget(0, QFormLayout.ItemRole.FieldRole, self.npersegSpinBox)
+
+        self.label_5 = QLabel(self.tab_2)
+        self.label_5.setObjectName(u"label_5")
+
+        self.formLayout_2.setWidget(0, QFormLayout.ItemRole.LabelRole, self.label_5)
+
+        self.overlapSpinBox = QDoubleSpinBox(self.tab_2)
+        self.overlapSpinBox.setObjectName(u"overlapSpinBox")
+        self.overlapSpinBox.setDecimals(2)
+        self.overlapSpinBox.setMaximum(0.990000000000000)
+        self.overlapSpinBox.setSingleStep(0.100000000000000)
+        self.overlapSpinBox.setValue(0.500000000000000)
+
+        self.formLayout_2.setWidget(1, QFormLayout.ItemRole.FieldRole, self.overlapSpinBox)
+
+        self.label_6 = QLabel(self.tab_2)
+        self.label_6.setObjectName(u"label_6")
+
+        self.formLayout_2.setWidget(1, QFormLayout.ItemRole.LabelRole, self.label_6)
+
+        self.tabWidget.addTab(self.tab_2, "")
+
+        self.formLayout.setWidget(2, QFormLayout.ItemRole.SpanningRole, self.tabWidget)
+
+        self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+
+        self.formLayout.setItem(15, QFormLayout.ItemRole.LabelRole, self.verticalSpacer)
+
+        self.topFreqSpinBox = QSpinBox(self.groupBox)
+        self.topFreqSpinBox.setObjectName(u"topFreqSpinBox")
+        self.topFreqSpinBox.setMinimum(1)
+        self.topFreqSpinBox.setMaximum(256)
+        self.topFreqSpinBox.setStepType(QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
+        self.topFreqSpinBox.setValue(5)
+
+        self.formLayout.setWidget(10, QFormLayout.ItemRole.LabelRole, self.topFreqSpinBox)
+
+        self.topFreqButton = QPushButton(self.groupBox)
+        self.topFreqButton.setObjectName(u"topFreqButton")
+
+        self.formLayout.setWidget(10, QFormLayout.ItemRole.FieldRole, self.topFreqButton)
+
+        self.reloadButton = QPushButton(self.groupBox)
+        self.reloadButton.setObjectName(u"reloadButton")
+
+        self.formLayout.setWidget(1, QFormLayout.ItemRole.LabelRole, self.reloadButton)
 
 
         self.horizontalLayout.addWidget(self.groupBox)
@@ -210,24 +250,25 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
 
+        self.tabWidget.setCurrentIndex(0)
+
+
         QMetaObject.connectSlotsByName(MainWindow)
     # setupUi
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"Spectral", None))
-        self.groupBox.setTitle(QCoreApplication.translate("MainWindow", u"Control", None))
+        self.groupBox.setTitle("")
         self.openButton.setText(QCoreApplication.translate("MainWindow", u"\U0001f4c2 Open", None))
         self.exportButton.setText(QCoreApplication.translate("MainWindow", u"\U0001f4be Export", None))
-        self.label_5.setText(QCoreApplication.translate("MainWindow", u"nperseg", None))
-        self.label_6.setText(QCoreApplication.translate("MainWindow", u"overlap", None))
         self.label_4.setText(QCoreApplication.translate("MainWindow", u"scale", None))
         self.scaleComboBox.setItemText(0, QCoreApplication.translate("MainWindow", u"Linear", None))
         self.scaleComboBox.setItemText(1, QCoreApplication.translate("MainWindow", u"Log", None))
         self.scaleComboBox.setItemText(2, QCoreApplication.translate("MainWindow", u"Mel", None))
 
-        self.label.setText(QCoreApplication.translate("MainWindow", u"Brush size", None))
-        self.label_2.setText(QCoreApplication.translate("MainWindow", u"Amplitude", None))
+        self.resetMaskButton.setText(QCoreApplication.translate("MainWindow", u"reset mask", None))
         self.maskCheckBox.setText(QCoreApplication.translate("MainWindow", u"mask", None))
+        self.burnButton.setText(QCoreApplication.translate("MainWindow", u"burn mask", None))
         self.reconstructButton.setText(QCoreApplication.translate("MainWindow", u"\u2705 Apply", None))
         self.playButton.setText(QCoreApplication.translate("MainWindow", u"\u25b6\ufe0f Play", None))
         self.regenerateButton.setText(QCoreApplication.translate("MainWindow", u"\U0001f504 Refresh", None))
@@ -236,7 +277,13 @@ class Ui_MainWindow(object):
         self.randomPhaseButton.setText(QCoreApplication.translate("MainWindow", u"random", None))
         self.reconstructPhaseButton.setText(QCoreApplication.translate("MainWindow", u"reconstruct", None))
         self.histogramCheckBox.setText(QCoreApplication.translate("MainWindow", u"histogram", None))
-        self.resetMaskButton.setText(QCoreApplication.translate("MainWindow", u"reset mask", None))
-        self.burnButton.setText(QCoreApplication.translate("MainWindow", u"burn mask", None))
+        self.label.setText(QCoreApplication.translate("MainWindow", u"Brush size", None))
+        self.label_2.setText(QCoreApplication.translate("MainWindow", u"Amplitude", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("MainWindow", u"Brush", None))
+        self.label_5.setText(QCoreApplication.translate("MainWindow", u"nperseg", None))
+        self.label_6.setText(QCoreApplication.translate("MainWindow", u"overlap", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), QCoreApplication.translate("MainWindow", u"STFT", None))
+        self.topFreqButton.setText(QCoreApplication.translate("MainWindow", u"top freq", None))
+        self.reloadButton.setText(QCoreApplication.translate("MainWindow", u"\u21b6 Reload", None))
     # retranslateUi
 
