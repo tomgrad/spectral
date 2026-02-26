@@ -1,6 +1,6 @@
 import sys
 from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QLabel
-from PySide6.QtCore import Slot, QUrl, QTimer
+from PySide6.QtCore import Slot, QUrl, QTimer, QRectF
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 import pyqtgraph as pg
 import numpy as np
@@ -23,6 +23,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # Initialize drawing mask
         self.draw_mask = None
+        self.uncovered_mask = None
         
         # Display update throttling
         self.display_needs_update = False
@@ -30,6 +31,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.display_timer.timeout.connect(self._throttled_display_update)
         self.display_timer.setInterval(50)  # Update every 50ms max
         self.display_timer.start()
+
+        # Debounce STFT settings updates
+        self.transform_settings_timer = QTimer()
+        self.transform_settings_timer.setSingleShot(True)
+        self.transform_settings_timer.setInterval(250)
+        self.transform_settings_timer.timeout.connect(self._applyTransformSettingsChange)
 
         self._loadAudio('audio/parowki.wav')
         self.plotView.plot(x=self.time_axis, y=self.data)
@@ -39,6 +46,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Set histogram checkbox to off by default
         self.histogramCheckBox.setChecked(False)
         self.imageView.ui.histogram.hide()
+
+        # Set mask checkbox to off by default
+        self.maskCheckBox.setChecked(False)
+
+        # Semi-transparent overlay mask (first step: full mask toggle)
+        self.mask_overlay = pg.ImageItem()
+        self.mask_overlay.setZValue(10)
+        self.imageView.view.addItem(self.mask_overlay)
+        self.mask_overlay.hide()
         
         # Set Log scale as default (before displaying spectrogram)
         self.scaleComboBox.setCurrentIndex(1)  # Log is at index 1
@@ -73,9 +89,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.zeroPhaseButton.clicked.connect(self.setPhaseToZero)
         self.randomPhaseButton.clicked.connect(self.setPhaseToRandom)
         self.reconstructPhaseButton.clicked.connect(self.reconstructPhase)
+        self.resetMaskButton.clicked.connect(self.resetMask)
+        self.burnButton.clicked.connect(self.burnMask)
         self.histogramCheckBox.stateChanged.connect(self.toggleHistogram)
+        self.maskCheckBox.stateChanged.connect(self.toggleMaskOverlay)
         self.scaleComboBox.currentIndexChanged.connect(self.onScaleChanged)
         self.imageView.dragCoordinates.connect(self._handle_drag_coordinates)
+        self.npersegSpinBox.valueChanged.connect(self.onTransformSettingsChanged)
+        self.overlapSpinBox.valueChanged.connect(self.onTransformSettingsChanged)
 
     def onMediaError(self, error):
         print(f"Media Error: {self.player.errorString()}")
@@ -86,10 +107,85 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.imageView.ui.histogram.show()
         else:  # Checkbox is unchecked
             self.imageView.ui.histogram.hide()
+
+    def toggleMaskOverlay(self, state):
+        """Toggle semi-transparent mask overlay visibility."""
+        if state:
+            self._ensure_uncovered_mask()
+            self._update_mask_overlay()
+            self.mask_overlay.show()
+        else:
+            self.mask_overlay.hide()
+
+    def resetMask(self):
+        """Reset uncovered regions so the mask is fully covered again."""
+        if self.Sxx is None:
+            return
+
+        self._ensure_uncovered_mask()
+        self.uncovered_mask.fill(False)
+        self._update_mask_overlay()
     
     def onScaleChanged(self, index):
         """Handle spectrogram scale change."""
         self._display_spectrogram()
+
+    def onTransformSettingsChanged(self):
+        """Debounce spectrogram regeneration when STFT settings change."""
+        self.transform_settings_timer.start()
+
+    def _applyTransformSettingsChange(self):
+        """Apply pending STFT setting changes."""
+        if hasattr(self, 'data') and self.data is not None:
+            self.regenerateSpectrogram()
+
+    def _get_stft_params(self):
+        """Get STFT parameters from UI controls."""
+        nperseg = max(1, int(self.npersegSpinBox.value()))
+        overlap_ratio = float(self.overlapSpinBox.value())
+        noverlap = int(np.floor(overlap_ratio * nperseg))
+        noverlap = max(0, min(noverlap, nperseg - 1))
+        return nperseg, noverlap
+
+    def _ensure_uncovered_mask(self):
+        """Ensure uncovered-mask storage exists and matches spectrogram shape."""
+        if self.Sxx is None:
+            self.uncovered_mask = None
+            return
+
+        if self.uncovered_mask is None or self.uncovered_mask.shape != self.Sxx.shape:
+            self.uncovered_mask = np.zeros(self.Sxx.shape, dtype=bool)
+
+    def _target_amplitude_from_amp_control(self):
+        """Map ampSpinBox value to target amplitude in linear spectrogram space."""
+        if self.Sxx is None:
+            return 0.0
+
+        amp = self.ampSpinBox.value()
+        amp_normalized = (amp + 1.0) / 2.0
+
+        epsilon = 1e-10
+        Sxx_dB = 10 * np.log10(self.Sxx + epsilon)
+        sxx_min_dB = np.min(Sxx_dB)
+        sxx_max_dB = np.max(Sxx_dB)
+        target_dB = sxx_min_dB + amp_normalized * (sxx_max_dB - sxx_min_dB)
+
+        return 10 ** (target_dB / 10.0)
+
+    def burnMask(self):
+        """Set all uncovered spectrogram bins to ampSpinBox target value."""
+        if self.Sxx is None:
+            return
+
+        self._ensure_uncovered_mask()
+        if self.uncovered_mask is None or not np.any(self.uncovered_mask):
+            print("No uncovered bins to burn")
+            return
+
+        target_amplitude = self._target_amplitude_from_amp_control()
+        self.Sxx[self.uncovered_mask] = target_amplitude
+        self._display_spectrogram()
+        print("Burn applied to uncovered spectrogram regions")
     
     def _throttled_display_update(self):
         """Update display only if needed (called by timer)."""
@@ -136,6 +232,68 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.imageView.set_mel_ticks(n_mels, sr=self.sampling_rate)
         else:
             self.imageView.set_linear_ticks()
+
+        # Keep optional mask overlay aligned with current spectrogram view
+        self._update_mask_overlay(frequencies_for_display)
+
+    def _update_mask_overlay(self, frequencies_for_display=None):
+        """Update semi-transparent overlay mask geometry to match the spectrogram."""
+        if self.Sxx is None or self.times is None or self.frequencies is None:
+            self.mask_overlay.hide()
+            return
+
+        self._ensure_uncovered_mask()
+
+        if frequencies_for_display is None:
+            scale_type = self.scaleComboBox.currentText()
+            if scale_type == "Mel":
+                frequencies_for_display = np.arange(128)
+            else:
+                frequencies_for_display = self.frequencies
+
+        if len(self.times) == 0 or len(frequencies_for_display) == 0:
+            self.mask_overlay.hide()
+            return
+
+        overlay_rgba = np.zeros((len(self.times), len(frequencies_for_display), 4), dtype=np.uint8)
+        alpha_channel = np.full((len(self.times), len(frequencies_for_display)), 120, dtype=np.uint8)
+
+        scale_type = self.scaleComboBox.currentText()
+        if scale_type == "Mel" and hasattr(self, 'mel_to_freq_mapping'):
+            for mel_bin in range(len(frequencies_for_display)):
+                freq_indices = self.mel_to_freq_mapping.get(mel_bin)
+                if freq_indices is None or len(freq_indices) == 0:
+                    continue
+                uncovered_times = np.any(self.uncovered_mask[freq_indices, :], axis=0)
+                alpha_channel[uncovered_times, mel_bin] = 0
+        else:
+            alpha_channel[self.uncovered_mask.T] = 0
+
+        overlay_rgba[..., 3] = alpha_channel
+        self.mask_overlay.setImage(overlay_rgba, autoLevels=False)
+
+        time_min = float(self.times[0])
+        freq_min = float(frequencies_for_display[0])
+
+        if len(self.times) > 1:
+            time_step = float(self.times[1] - self.times[0])
+        else:
+            time_step = 1.0
+
+        if len(frequencies_for_display) > 1:
+            freq_step = float(frequencies_for_display[1] - frequencies_for_display[0])
+        else:
+            freq_step = 1.0
+
+        width = max(time_step * len(self.times), 1.0)
+        height = max(freq_step * len(frequencies_for_display), 1.0)
+
+        self.mask_overlay.setRect(QRectF(time_min, freq_min, width, height))
+
+        if self.maskCheckBox.isChecked():
+            self.mask_overlay.show()
+        else:
+            self.mask_overlay.hide()
     
     def _apply_scale(self, magnitude_spec):
         """Apply selected scale to magnitude spectrogram.
@@ -251,6 +409,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self._display_spectrogram()
 
     def playAudio(self):
+        if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
+            self.player.stop()
+            return
+
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
             sf.write(tmp.name, self.data, self.sampling_rate)
             self.player.setSource(QUrl.fromLocalFile(tmp.name))
@@ -275,10 +437,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if state == QMediaPlayer.PlaybackState.PlayingState:
             self.playback_line_wave.show()
             self.playback_line_spec.show()
+            self.playButton.setText("⏹️ Stop")
         else:
             # Hide lines when stopped or paused
             self.playback_line_wave.hide()
             self.playback_line_spec.hide()
+            self.playButton.setText("▶️ Play")
 
     def setPhaseToZero(self):
         """Set phase to all zeros."""
@@ -307,6 +471,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.Zxx is None or self.Sxx is None:
             print("No audio loaded")
             return
+
+        nperseg, noverlap = self._get_stft_params()
         
         n_iter = self.iterSpinBox.value()
         print(f"Reconstructing phase with {n_iter} iterations...")
@@ -323,16 +489,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             _, signal = scipy.signal.istft(
                 Zxx_iter,
                 fs=self.sampling_rate,
-                nperseg=1024,
-                noverlap=512,
+                nperseg=nperseg,
+                noverlap=noverlap,
             )
             
             # Forward STFT of reconstructed signal
             _, _, Zxx_reconstructed = scipy.signal.stft(
                 signal,
                 fs=self.sampling_rate,
-                nperseg=1024,
-                noverlap=512,
+                nperseg=nperseg,
+                noverlap=noverlap,
             )
             
             # Extract new phase estimate
@@ -350,6 +516,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.Zxx is None or self.Sxx is None:
             print("No audio loaded")
             return
+
+        nperseg, noverlap = self._get_stft_params()
         
         # Apply mask to spectrogram permanently
         if self.draw_mask is not None:
@@ -358,22 +526,40 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             # Clear the mask after applying
             self.draw_mask = None
             print("Mask applied to spectrogram")
+            
         
         # Use current phase if available, otherwise use original
         if hasattr(self, 'phase'):
             phase = self.phase
         else:
             phase = np.angle(self.Zxx)
+
+        magnitude_for_reconstruction = self.Sxx
+        masked_floor_amplitude = 1e-10
+
+        # When mask mode is enabled, reconstruct only from uncovered bins
+        if self.maskCheckBox.isChecked():
+            self._ensure_uncovered_mask()
+            if self.uncovered_mask is not None:
+                if np.any(self.uncovered_mask):
+                    magnitude_for_reconstruction = np.where(
+                        self.uncovered_mask,
+                        self.Sxx,
+                        masked_floor_amplitude,
+                    )
+                else:
+                    magnitude_for_reconstruction = np.full_like(self.Sxx, masked_floor_amplitude)
+                    print("No uncovered bins selected; reconstructing near-silence")
         
         # Combine modified magnitude with phase
-        Zxx_modified = self.Sxx * np.exp(1j * phase)
+        Zxx_modified = magnitude_for_reconstruction * np.exp(1j * phase)
         
         # Reconstruct signal from modified STFT
         _, reconstructed_data = scipy.signal.istft(
             Zxx_modified,
             fs=self.sampling_rate,
-            nperseg=1024,
-            noverlap=512,
+            nperseg=nperseg,
+            noverlap=noverlap,
         )
         
         # Store reconstructed data
@@ -395,21 +581,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if not hasattr(self, 'data') or self.data is None:
             print("No audio data available")
             return
+
+        nperseg, noverlap = self._get_stft_params()
         
         # Clear mask
         self.draw_mask = None
+        self.uncovered_mask = None
         
         # Recalculate STFT from current data
         self.frequencies, self.times, self.Zxx = scipy.signal.stft(
             self.data,
             fs=self.sampling_rate,
-            nperseg=1024,
-            noverlap=512,
+            nperseg=nperseg,
+            noverlap=noverlap,
         )
         
         # Compute magnitude spectrogram from complex STFT
         self.Sxx = np.abs(self.Zxx)
         self.sxx_max = np.max(self.Sxx) if self.Sxx.size else 0.0
+        self._ensure_uncovered_mask()
         
         # Reset phase from new STFT
         self.phase = np.angle(self.Zxx).copy()
@@ -428,28 +618,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.Sxx is None:
             return
 
+        if self.maskCheckBox.isChecked():
+            self._erase_mask_with_brush(freq_idx, time_idx)
+            return
+
         # Initialize mask if it doesn't exist
         if self.draw_mask is None:
             self.draw_mask = np.full_like(self.Sxx, np.nan)
 
         # Get radius and amplitude from spin boxes
         radius = self.brushSizeSpinBox.value()  # Interpret as radius directly
-        amp = self.ampSpinBox.value()  # Range: -1 to 1
-        
-        # Map amplitude value from [-1, 1] to [0, 1]
-        amp_normalized = (amp + 1.0) / 2.0
-        
-        # Calculate target amplitude in dB space
-        epsilon = 1e-10  # Small value to avoid log(0)
-        Sxx_dB = 10 * np.log10(self.Sxx + epsilon)
-        sxx_min_dB = np.min(Sxx_dB)
-        sxx_max_dB = np.max(Sxx_dB)
-        
-        # Calculate target in dB space
-        target_dB = sxx_min_dB + amp_normalized * (sxx_max_dB - sxx_min_dB)
-        
-        # Convert back to linear space
-        target_amplitude = 10 ** (target_dB / 10.0)
+        target_amplitude = self._target_amplitude_from_amp_control()
         
         # Get current scale
         current_scale = self.scaleComboBox.currentText()
@@ -482,9 +661,43 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Request display update (throttled)
         self._request_display_update()
 
+    def _erase_mask_with_brush(self, freq_idx: int, time_idx: int):
+        """Erase the mask with brush by marking bins as uncovered."""
+        self._ensure_uncovered_mask()
+        if self.uncovered_mask is None:
+            return
+
+        radius = self.brushSizeSpinBox.value()
+        current_scale = self.scaleComboBox.currentText()
+
+        if current_scale == "Mel" and hasattr(self, 'mel_to_freq_mapping'):
+            n_mels = len(self.mel_to_freq_mapping)
+            for df in range(-radius, radius + 1):
+                for dt in range(-radius, radius + 1):
+                    if df * df + dt * dt <= radius * radius:
+                        mel_bin = freq_idx + df
+                        t = time_idx + dt
+                        if 0 <= mel_bin < n_mels and 0 <= t < self.uncovered_mask.shape[1]:
+                            freq_indices = self.mel_to_freq_mapping.get(mel_bin)
+                            if freq_indices is not None and len(freq_indices) > 0:
+                                self.uncovered_mask[freq_indices, t] = True
+        else:
+            for df in range(-radius, radius + 1):
+                for dt in range(-radius, radius + 1):
+                    if df * df + dt * dt <= radius * radius:
+                        f = freq_idx + df
+                        t = time_idx + dt
+                        if 0 <= f < self.uncovered_mask.shape[0] and 0 <= t < self.uncovered_mask.shape[1]:
+                            self.uncovered_mask[f, t] = True
+
+        self._update_mask_overlay()
+
     def _loadAudio(self, file_path):
         # Clear any existing mask when loading new audio
         self.draw_mask = None
+        self.uncovered_mask = None
+
+        nperseg, noverlap = self._get_stft_params()
         
         original_rate, data = scipy.io.wavfile.read(file_path)
         
@@ -512,13 +725,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.frequencies, self.times, self.Zxx = scipy.signal.stft(
             self.data,
             fs=self.sampling_rate,
-            nperseg=1024,
-            noverlap=512,
+            nperseg=nperseg,
+            noverlap=noverlap,
         )
         
         # Compute magnitude spectrogram from complex STFT
         self.Sxx = np.abs(self.Zxx)
         self.sxx_max = np.max(self.Sxx) if self.Sxx.size else 0.0
+        self._ensure_uncovered_mask()
         
         # Initialize phase from original STFT
         self.phase = np.angle(self.Zxx).copy()
