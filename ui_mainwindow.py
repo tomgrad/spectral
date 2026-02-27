@@ -18,8 +18,8 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
 from PySide6.QtWidgets import (QAbstractSpinBox, QApplication, QCheckBox, QComboBox,
     QDoubleSpinBox, QFormLayout, QGroupBox, QHBoxLayout,
     QLabel, QMainWindow, QMenuBar, QPushButton,
-    QSizePolicy, QSpacerItem, QSpinBox, QStatusBar,
-    QTabWidget, QVBoxLayout, QWidget)
+    QSizePolicy, QSpinBox, QStatusBar, QTabWidget,
+    QVBoxLayout, QWidget)
 
 from imageview import ImageView
 from pyqtgraph import PlotWidget
@@ -28,7 +28,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(800, 667)
+        MainWindow.resize(800, 673)
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.horizontalLayout = QHBoxLayout(self.centralwidget)
@@ -162,10 +162,6 @@ class Ui_MainWindow(object):
 
         self.formLayout.setWidget(2, QFormLayout.ItemRole.SpanningRole, self.tabWidget)
 
-        self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
-
-        self.formLayout.setItem(16, QFormLayout.ItemRole.LabelRole, self.verticalSpacer)
-
         self.topFreqSpinBox = QSpinBox(self.groupBox)
         self.topFreqSpinBox.setObjectName(u"topFreqSpinBox")
         self.topFreqSpinBox.setMinimum(1)
@@ -195,16 +191,6 @@ class Ui_MainWindow(object):
 
         self.formLayout.setWidget(10, QFormLayout.ItemRole.LabelRole, self.reconstructButton)
 
-        self.loopButton = QPushButton(self.groupBox)
-        self.loopButton.setObjectName(u"loopButton")
-
-        self.formLayout.setWidget(9, QFormLayout.ItemRole.LabelRole, self.loopButton)
-
-        self.playButton = QPushButton(self.groupBox)
-        self.playButton.setObjectName(u"playButton")
-
-        self.formLayout.setWidget(9, QFormLayout.ItemRole.FieldRole, self.playButton)
-
         self.cmapComboBox = QComboBox(self.groupBox)
         self.cmapComboBox.setObjectName(u"cmapComboBox")
 
@@ -225,8 +211,19 @@ class Ui_MainWindow(object):
 
         self.lockCheckBox = QCheckBox(self.groupBox)
         self.lockCheckBox.setObjectName(u"lockCheckBox")
+        self.lockCheckBox.setChecked(True)
 
         self.formLayout.setWidget(4, QFormLayout.ItemRole.LabelRole, self.lockCheckBox)
+
+        self.playButton = QPushButton(self.groupBox)
+        self.playButton.setObjectName(u"playButton")
+
+        self.formLayout.setWidget(16, QFormLayout.ItemRole.FieldRole, self.playButton)
+
+        self.loopButton = QPushButton(self.groupBox)
+        self.loopButton.setObjectName(u"loopButton")
+
+        self.formLayout.setWidget(16, QFormLayout.ItemRole.LabelRole, self.loopButton)
 
 
         self.horizontalLayout.addWidget(self.groupBox)
@@ -288,13 +285,13 @@ class Ui_MainWindow(object):
         self.reloadButton.setText(QCoreApplication.translate("MainWindow", u"\u21b6 Reload", None))
         self.regenerateButton.setText(QCoreApplication.translate("MainWindow", u"\U0001f504 Refresh", None))
         self.reconstructButton.setText(QCoreApplication.translate("MainWindow", u"\u2705 Apply", None))
-        self.loopButton.setText(QCoreApplication.translate("MainWindow", u"\U0001f501 Loop", None))
-        self.playButton.setText(QCoreApplication.translate("MainWindow", u"\u25b6\ufe0f Play", None))
         self.scaleComboBox.setItemText(0, QCoreApplication.translate("MainWindow", u"Linear", None))
         self.scaleComboBox.setItemText(1, QCoreApplication.translate("MainWindow", u"Log", None))
         self.scaleComboBox.setItemText(2, QCoreApplication.translate("MainWindow", u"Mel", None))
 
         self.histogramCheckBox.setText(QCoreApplication.translate("MainWindow", u"histogram", None))
         self.lockCheckBox.setText(QCoreApplication.translate("MainWindow", u"lock view", None))
+        self.playButton.setText(QCoreApplication.translate("MainWindow", u"\u25b6\ufe0f Play", None))
+        self.loopButton.setText(QCoreApplication.translate("MainWindow", u"\U0001f501 Loop", None))
     # retranslateUi
 

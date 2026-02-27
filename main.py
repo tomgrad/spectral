@@ -1,6 +1,7 @@
 import sys
 from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QLabel
 from PySide6.QtCore import Slot, QUrl, QTimer, QRectF
+from PySide6.QtGui import QShortcut, QKeySequence
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 import pyqtgraph as pg
 import numpy as np
@@ -96,6 +97,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.loopButton.toggled.connect(self.onLoopToggled)
 
         self.playButton.clicked.connect(self.playAudio)
+        self.play_shortcut = QShortcut(QKeySequence("Space"), self)
+        self.play_shortcut.activated.connect(self.playButton.click)
         self.openButton.clicked.connect(self.openFile)
         self.reloadButton.clicked.connect(self.reloadLastFile)
         self.exportButton.clicked.connect(self.exportAudio)
