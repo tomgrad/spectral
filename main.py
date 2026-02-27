@@ -39,11 +39,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.transform_settings_timer.timeout.connect(self._applyTransformSettingsChange)
 
         self.last_opened_file_path = None
+        self.playback_start_time = 0.0
+        self.playback_start_idx = 0
+        self.playback_end_idx = 0
 
         self._loadAudio('audio/parowki.wav')
         self.plotView.plot(x=self.time_axis, y=self.data)
         self.plotView.setLabel('bottom', 'Time', units='s')
         self.plotView.setLabel('left', 'Amplitude')
+        self.plotView.getViewBox().setMouseEnabled(x=True, y=False)
+        self._update_plot_view_limits()
         
         # Set histogram checkbox to off by default
         self.histogramCheckBox.setChecked(False)
@@ -60,6 +65,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
         # Set Log scale as default (before displaying spectrogram)
         self.scaleComboBox.setCurrentIndex(1)  # Log is at index 1
+
+        self._setup_colormap_selector()
         
         # Now display with correct scale
         self._display_spectrogram()
@@ -82,6 +89,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.player.errorOccurred.connect(self.onMediaError)
         self.player.positionChanged.connect(self.updatePlaybackPosition)
         self.player.playbackStateChanged.connect(self.onPlaybackStateChanged)
+        self.player.mediaStatusChanged.connect(self.onMediaStatusChanged)
+
+        self.loopButton.setCheckable(True)
+        self.loopButton.setChecked(False)
+        self.loopButton.toggled.connect(self.onLoopToggled)
 
         self.playButton.clicked.connect(self.playAudio)
         self.openButton.clicked.connect(self.openFile)
@@ -97,10 +109,54 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.burnButton.clicked.connect(self.burnMask)
         self.histogramCheckBox.stateChanged.connect(self.toggleHistogram)
         self.maskCheckBox.stateChanged.connect(self.toggleMaskOverlay)
+        self.lockCheckBox.toggled.connect(self.onLockViewToggled)
         self.scaleComboBox.currentIndexChanged.connect(self.onScaleChanged)
+        self.cmapComboBox.currentTextChanged.connect(self.onColormapChanged)
         self.imageView.dragCoordinates.connect(self._handle_drag_coordinates)
         self.npersegSpinBox.valueChanged.connect(self.onTransformSettingsChanged)
         self.overlapSpinBox.valueChanged.connect(self.onTransformSettingsChanged)
+        self.plotView.getViewBox().sigXRangeChanged.connect(self.onPlotXRangeChanged)
+
+    def _setup_colormap_selector(self):
+        """Configure spectrogram colormap options with jet as default."""
+        cmap_names = [
+            'jet',
+            'magma',
+            'inferno',
+            'plasma',
+            'viridis',
+            'cividis',
+            'turbo',
+            'gray',
+            'gray_r'
+        ]
+
+ 
+        self.cmapComboBox.blockSignals(True)
+        self.cmapComboBox.clear()
+        self.cmapComboBox.addItems(cmap_names)
+        self.cmapComboBox.setCurrentText('jet')
+        self.cmapComboBox.blockSignals(False)
+        self._apply_colormap('jet')
+
+    def _apply_colormap(self, cmap_name):
+        """Apply matplotlib colormap by name to spectrogram image view."""
+        try:
+            cm = pg.colormap.getFromMatplotlib(cmap_name)
+        except Exception:
+            cm = pg.colormap.getFromMatplotlib('jet')
+            cmap_name = 'jet'
+
+        self.imageView.setColorMap(cm)
+
+        if self.cmapComboBox.currentText() != cmap_name:
+            self.cmapComboBox.blockSignals(True)
+            self.cmapComboBox.setCurrentText(cmap_name)
+            self.cmapComboBox.blockSignals(False)
+
+    def onColormapChanged(self, cmap_name):
+        """Handle user-selected spectrogram colormap changes."""
+        self._apply_colormap(cmap_name)
 
     def onMediaError(self, error):
         self._status_error(f"Media Error: {self.player.errorString()}")
@@ -138,6 +194,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.mask_overlay.show()
         else:
             self.mask_overlay.hide()
+
+    def onLockViewToggled(self, checked):
+        """Synchronize spectrogram x-range with waveform view when lock is enabled."""
+        if checked:
+            self._sync_spectrogram_x_range_with_plot()
+
+    def onPlotXRangeChanged(self, *_):
+        """Track waveform x-range changes and mirror them to spectrogram when locked."""
+        if self.lockCheckBox.isChecked():
+            self._sync_spectrogram_x_range_with_plot()
+
+    def _sync_spectrogram_x_range_with_plot(self):
+        """Apply current waveform x-range to spectrogram view."""
+        x_range = self.plotView.getViewBox().viewRange()[0]
+        x_min = float(min(x_range[0], x_range[1]))
+        x_max = float(max(x_range[0], x_range[1]))
+        self.imageView.view.setXRange(x_min, x_max, padding=0)
 
     def resetMask(self):
         """Reset uncovered regions so the mask is fully covered again."""
@@ -445,18 +518,123 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.plotView.clear()
         self.plotView.addItem(self.playback_line_wave)
         self.plotView.plot(x=self.time_axis, y=self.data)
+        self._update_plot_view_limits()
         self.playback_line_wave.hide()
         self._display_spectrogram()
+        self._reset_full_time_range_views()
+
+    def _update_plot_view_limits(self):
+        """Limit plot zoom-out/pan to current waveform bounds."""
+        if not hasattr(self, 'time_axis') or self.time_axis is None or len(self.time_axis) == 0:
+            return
+        if not hasattr(self, 'data') or self.data is None or len(self.data) == 0:
+            return
+
+        x_min = float(self.time_axis[0])
+        x_max = float(self.time_axis[-1])
+        x_span = max(x_max - x_min, 1e-6)
+
+        y_min_data = float(np.min(self.data))
+        y_max_data = float(np.max(self.data))
+        y_span_data = y_max_data - y_min_data
+        y_padding = max(y_span_data * 0.05, 1e-3)
+        y_min = y_min_data - y_padding
+        y_max = y_max_data + y_padding
+        y_span = max(y_max - y_min, 1e-6)
+
+        view_box = self.plotView.getViewBox()
+        view_box.setLimits(
+            xMin=x_min,
+            xMax=x_max,
+            yMin=y_min,
+            yMax=y_max,
+            maxXRange=x_span,
+            maxYRange=y_span,
+        )
+
+    def _reset_full_time_range_views(self):
+        """Reset waveform and spectrogram x-range to full signal extent."""
+        if self.time_axis is None or len(self.time_axis) == 0:
+            return
+
+        x_min = float(self.time_axis[0])
+        x_max = float(self.time_axis[-1])
+        self.plotView.getViewBox().setXRange(x_min, x_max, padding=0)
+        self.imageView.view.setXRange(x_min, x_max, padding=0)
 
     def playAudio(self):
+        if self.data is None or len(self.data) == 0:
+            self._status_error("No audio loaded")
+            return
+
         if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
             self.player.stop()
             return
 
+        visible_start, visible_end = self._get_visible_time_range()
+        start_idx = int(np.floor(visible_start * self.sampling_rate))
+        end_idx = int(np.ceil(visible_end * self.sampling_rate))
+        self._play_segment_by_indices(start_idx, end_idx)
+
+    def _play_segment_by_indices(self, start_idx, end_idx):
+        """Play a signal segment by sample indices (inclusive start, exclusive end)."""
+        if self.data is None or len(self.data) == 0:
+            self._status_error("No audio loaded")
+            return
+
+        start_idx = max(0, min(int(start_idx), len(self.data) - 1))
+        end_idx = max(start_idx + 1, min(int(end_idx), len(self.data)))
+
+        segment = self.data[start_idx:end_idx]
+        if segment.size == 0:
+            self._status_error("Visible region is empty")
+            return
+
+        self.playback_start_idx = start_idx
+        self.playback_end_idx = end_idx
+        self.playback_start_time = start_idx / self.sampling_rate
+        self.playback_line_wave.setPos(self.playback_start_time)
+        self.playback_line_spec.setPos(self.playback_start_time)
+
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
-            sf.write(tmp.name, self.data, self.sampling_rate)
+            sf.write(tmp.name, segment, self.sampling_rate)
             self.player.setSource(QUrl.fromLocalFile(tmp.name))
             self.player.play()
+
+    def onLoopToggled(self, enabled):
+        if enabled:
+            self._status_info("Loop playback enabled", 1500)
+        else:
+            self._status_info("Loop playback disabled", 1500)
+
+    def onMediaStatusChanged(self, status):
+        if status != QMediaPlayer.MediaStatus.EndOfMedia:
+            return
+
+        if not self.loopButton.isChecked():
+            return
+
+        self._play_segment_by_indices(self.playback_start_idx, self.playback_end_idx)
+
+    def _get_visible_time_range(self):
+        """Return currently visible plot time range clamped to available data."""
+        if self.time_axis is None or len(self.time_axis) == 0:
+            return 0.0, 0.0
+
+        view_range = self.plotView.getViewBox().viewRange()[0]
+        visible_start = float(min(view_range[0], view_range[1]))
+        visible_end = float(max(view_range[0], view_range[1]))
+
+        data_start = float(self.time_axis[0])
+        data_end = float(self.time_axis[-1])
+        visible_start = max(visible_start, data_start)
+        visible_end = min(visible_end, data_end)
+
+        if visible_end <= visible_start:
+            sample_duration = 1.0 / max(float(self.sampling_rate), 1.0)
+            visible_end = min(visible_start + sample_duration, data_end)
+
+        return visible_start, visible_end
     
     def updatePlaybackPosition(self, position):
         """Update playback line position. Position is in milliseconds."""
@@ -464,7 +642,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         
         # Convert position from milliseconds to seconds
-        time_seconds = position / 1000.0
+        time_seconds = self.playback_start_time + (position / 1000.0)
         
         # Update waveform line (position in seconds)
         self.playback_line_wave.setPos(time_seconds)
@@ -597,6 +775,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.plotView.clear()
         self.plotView.addItem(self.playback_line_wave)
         self.plotView.plot(x=self.time_axis, y=self.data)
+        self._update_plot_view_limits()
         self.playback_line_wave.hide()
         
         self._status_success("Signal reconstructed successfully")
@@ -642,6 +821,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.plotView.clear()
         self.plotView.addItem(self.playback_line_wave)
         self.plotView.plot(x=self.time_axis, y=self.data)
+        self._update_plot_view_limits()
         self.playback_line_wave.hide()
 
         self._status_success(f"Signal reconstructed with top {top_frequencies} frequencies per window")

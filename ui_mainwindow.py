@@ -28,7 +28,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(800, 627)
+        MainWindow.resize(800, 667)
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.horizontalLayout = QHBoxLayout(self.centralwidget)
@@ -47,19 +47,6 @@ class Ui_MainWindow(object):
 
         self.formLayout.setWidget(0, QFormLayout.ItemRole.FieldRole, self.exportButton)
 
-        self.label_4 = QLabel(self.groupBox)
-        self.label_4.setObjectName(u"label_4")
-
-        self.formLayout.setWidget(5, QFormLayout.ItemRole.LabelRole, self.label_4)
-
-        self.scaleComboBox = QComboBox(self.groupBox)
-        self.scaleComboBox.addItem("")
-        self.scaleComboBox.addItem("")
-        self.scaleComboBox.addItem("")
-        self.scaleComboBox.setObjectName(u"scaleComboBox")
-
-        self.formLayout.setWidget(5, QFormLayout.ItemRole.FieldRole, self.scaleComboBox)
-
         self.resetMaskButton = QPushButton(self.groupBox)
         self.resetMaskButton.setObjectName(u"resetMaskButton")
 
@@ -75,36 +62,21 @@ class Ui_MainWindow(object):
 
         self.formLayout.setWidget(7, QFormLayout.ItemRole.FieldRole, self.burnButton)
 
-        self.reconstructButton = QPushButton(self.groupBox)
-        self.reconstructButton.setObjectName(u"reconstructButton")
-
-        self.formLayout.setWidget(8, QFormLayout.ItemRole.LabelRole, self.reconstructButton)
-
-        self.playButton = QPushButton(self.groupBox)
-        self.playButton.setObjectName(u"playButton")
-
-        self.formLayout.setWidget(8, QFormLayout.ItemRole.FieldRole, self.playButton)
-
-        self.regenerateButton = QPushButton(self.groupBox)
-        self.regenerateButton.setObjectName(u"regenerateButton")
-
-        self.formLayout.setWidget(9, QFormLayout.ItemRole.LabelRole, self.regenerateButton)
-
         self.label_3 = QLabel(self.groupBox)
         self.label_3.setObjectName(u"label_3")
         self.label_3.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.formLayout.setWidget(11, QFormLayout.ItemRole.SpanningRole, self.label_3)
+        self.formLayout.setWidget(12, QFormLayout.ItemRole.SpanningRole, self.label_3)
 
         self.zeroPhaseButton = QPushButton(self.groupBox)
         self.zeroPhaseButton.setObjectName(u"zeroPhaseButton")
 
-        self.formLayout.setWidget(12, QFormLayout.ItemRole.LabelRole, self.zeroPhaseButton)
+        self.formLayout.setWidget(13, QFormLayout.ItemRole.LabelRole, self.zeroPhaseButton)
 
         self.randomPhaseButton = QPushButton(self.groupBox)
         self.randomPhaseButton.setObjectName(u"randomPhaseButton")
 
-        self.formLayout.setWidget(12, QFormLayout.ItemRole.FieldRole, self.randomPhaseButton)
+        self.formLayout.setWidget(13, QFormLayout.ItemRole.FieldRole, self.randomPhaseButton)
 
         self.iterSpinBox = QSpinBox(self.groupBox)
         self.iterSpinBox.setObjectName(u"iterSpinBox")
@@ -113,17 +85,12 @@ class Ui_MainWindow(object):
         self.iterSpinBox.setSingleStep(10)
         self.iterSpinBox.setValue(100)
 
-        self.formLayout.setWidget(13, QFormLayout.ItemRole.LabelRole, self.iterSpinBox)
+        self.formLayout.setWidget(14, QFormLayout.ItemRole.LabelRole, self.iterSpinBox)
 
         self.reconstructPhaseButton = QPushButton(self.groupBox)
         self.reconstructPhaseButton.setObjectName(u"reconstructPhaseButton")
 
-        self.formLayout.setWidget(13, QFormLayout.ItemRole.FieldRole, self.reconstructPhaseButton)
-
-        self.histogramCheckBox = QCheckBox(self.groupBox)
-        self.histogramCheckBox.setObjectName(u"histogramCheckBox")
-
-        self.formLayout.setWidget(14, QFormLayout.ItemRole.SpanningRole, self.histogramCheckBox)
+        self.formLayout.setWidget(14, QFormLayout.ItemRole.FieldRole, self.reconstructPhaseButton)
 
         self.tabWidget = QTabWidget(self.groupBox)
         self.tabWidget.setObjectName(u"tabWidget")
@@ -197,7 +164,7 @@ class Ui_MainWindow(object):
 
         self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
-        self.formLayout.setItem(15, QFormLayout.ItemRole.LabelRole, self.verticalSpacer)
+        self.formLayout.setItem(16, QFormLayout.ItemRole.LabelRole, self.verticalSpacer)
 
         self.topFreqSpinBox = QSpinBox(self.groupBox)
         self.topFreqSpinBox.setObjectName(u"topFreqSpinBox")
@@ -206,17 +173,60 @@ class Ui_MainWindow(object):
         self.topFreqSpinBox.setStepType(QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
         self.topFreqSpinBox.setValue(5)
 
-        self.formLayout.setWidget(10, QFormLayout.ItemRole.LabelRole, self.topFreqSpinBox)
+        self.formLayout.setWidget(11, QFormLayout.ItemRole.LabelRole, self.topFreqSpinBox)
 
         self.topFreqButton = QPushButton(self.groupBox)
         self.topFreqButton.setObjectName(u"topFreqButton")
 
-        self.formLayout.setWidget(10, QFormLayout.ItemRole.FieldRole, self.topFreqButton)
+        self.formLayout.setWidget(11, QFormLayout.ItemRole.FieldRole, self.topFreqButton)
 
         self.reloadButton = QPushButton(self.groupBox)
         self.reloadButton.setObjectName(u"reloadButton")
 
         self.formLayout.setWidget(1, QFormLayout.ItemRole.LabelRole, self.reloadButton)
+
+        self.regenerateButton = QPushButton(self.groupBox)
+        self.regenerateButton.setObjectName(u"regenerateButton")
+
+        self.formLayout.setWidget(10, QFormLayout.ItemRole.FieldRole, self.regenerateButton)
+
+        self.reconstructButton = QPushButton(self.groupBox)
+        self.reconstructButton.setObjectName(u"reconstructButton")
+
+        self.formLayout.setWidget(10, QFormLayout.ItemRole.LabelRole, self.reconstructButton)
+
+        self.loopButton = QPushButton(self.groupBox)
+        self.loopButton.setObjectName(u"loopButton")
+
+        self.formLayout.setWidget(9, QFormLayout.ItemRole.LabelRole, self.loopButton)
+
+        self.playButton = QPushButton(self.groupBox)
+        self.playButton.setObjectName(u"playButton")
+
+        self.formLayout.setWidget(9, QFormLayout.ItemRole.FieldRole, self.playButton)
+
+        self.cmapComboBox = QComboBox(self.groupBox)
+        self.cmapComboBox.setObjectName(u"cmapComboBox")
+
+        self.formLayout.setWidget(3, QFormLayout.ItemRole.FieldRole, self.cmapComboBox)
+
+        self.scaleComboBox = QComboBox(self.groupBox)
+        self.scaleComboBox.addItem("")
+        self.scaleComboBox.addItem("")
+        self.scaleComboBox.addItem("")
+        self.scaleComboBox.setObjectName(u"scaleComboBox")
+
+        self.formLayout.setWidget(3, QFormLayout.ItemRole.LabelRole, self.scaleComboBox)
+
+        self.histogramCheckBox = QCheckBox(self.groupBox)
+        self.histogramCheckBox.setObjectName(u"histogramCheckBox")
+
+        self.formLayout.setWidget(4, QFormLayout.ItemRole.FieldRole, self.histogramCheckBox)
+
+        self.lockCheckBox = QCheckBox(self.groupBox)
+        self.lockCheckBox.setObjectName(u"lockCheckBox")
+
+        self.formLayout.setWidget(4, QFormLayout.ItemRole.LabelRole, self.lockCheckBox)
 
 
         self.horizontalLayout.addWidget(self.groupBox)
@@ -261,22 +271,13 @@ class Ui_MainWindow(object):
         self.groupBox.setTitle("")
         self.openButton.setText(QCoreApplication.translate("MainWindow", u"\U0001f4c2 Open", None))
         self.exportButton.setText(QCoreApplication.translate("MainWindow", u"\U0001f4be Export", None))
-        self.label_4.setText(QCoreApplication.translate("MainWindow", u"scale", None))
-        self.scaleComboBox.setItemText(0, QCoreApplication.translate("MainWindow", u"Linear", None))
-        self.scaleComboBox.setItemText(1, QCoreApplication.translate("MainWindow", u"Log", None))
-        self.scaleComboBox.setItemText(2, QCoreApplication.translate("MainWindow", u"Mel", None))
-
         self.resetMaskButton.setText(QCoreApplication.translate("MainWindow", u"reset mask", None))
         self.maskCheckBox.setText(QCoreApplication.translate("MainWindow", u"mask", None))
         self.burnButton.setText(QCoreApplication.translate("MainWindow", u"burn mask", None))
-        self.reconstructButton.setText(QCoreApplication.translate("MainWindow", u"\u2705 Apply", None))
-        self.playButton.setText(QCoreApplication.translate("MainWindow", u"\u25b6\ufe0f Play", None))
-        self.regenerateButton.setText(QCoreApplication.translate("MainWindow", u"\U0001f504 Refresh", None))
         self.label_3.setText(QCoreApplication.translate("MainWindow", u"Phase", None))
         self.zeroPhaseButton.setText(QCoreApplication.translate("MainWindow", u"zero", None))
         self.randomPhaseButton.setText(QCoreApplication.translate("MainWindow", u"random", None))
         self.reconstructPhaseButton.setText(QCoreApplication.translate("MainWindow", u"reconstruct", None))
-        self.histogramCheckBox.setText(QCoreApplication.translate("MainWindow", u"histogram", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"Brush size", None))
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Amplitude", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("MainWindow", u"Brush", None))
@@ -285,5 +286,15 @@ class Ui_MainWindow(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), QCoreApplication.translate("MainWindow", u"STFT", None))
         self.topFreqButton.setText(QCoreApplication.translate("MainWindow", u"top freq", None))
         self.reloadButton.setText(QCoreApplication.translate("MainWindow", u"\u21b6 Reload", None))
+        self.regenerateButton.setText(QCoreApplication.translate("MainWindow", u"\U0001f504 Refresh", None))
+        self.reconstructButton.setText(QCoreApplication.translate("MainWindow", u"\u2705 Apply", None))
+        self.loopButton.setText(QCoreApplication.translate("MainWindow", u"\U0001f501 Loop", None))
+        self.playButton.setText(QCoreApplication.translate("MainWindow", u"\u25b6\ufe0f Play", None))
+        self.scaleComboBox.setItemText(0, QCoreApplication.translate("MainWindow", u"Linear", None))
+        self.scaleComboBox.setItemText(1, QCoreApplication.translate("MainWindow", u"Log", None))
+        self.scaleComboBox.setItemText(2, QCoreApplication.translate("MainWindow", u"Mel", None))
+
+        self.histogramCheckBox.setText(QCoreApplication.translate("MainWindow", u"histogram", None))
+        self.lockCheckBox.setText(QCoreApplication.translate("MainWindow", u"lock view", None))
     # retranslateUi
 
